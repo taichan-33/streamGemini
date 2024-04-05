@@ -1,0 +1,4 @@
+streamlit
+google-generativeai
+watchdog>=1.0.0,<2.0.0
+flask

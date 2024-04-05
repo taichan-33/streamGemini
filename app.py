@@ -1,10 +1,11 @@
 import os
+
 import streamlit as st
 import google.generativeai as genai
 import google.ai.generativelanguage as glm
 
 # APIキーを環境変数から読み込む
-api_key = os.environ.get("GENAI_API_KEY")
+api_key = os.environ.get("GENERATIVEAI_API_KEY")
 
 # APIキー設定
 genai.configure(api_key=api_key)
@@ -12,7 +13,8 @@ genai.configure(api_key=api_key)
 # タイトルを設定する
 st.set_page_config(
     page_title="Chat with Gemini 1.5Pro",
-    page_icon="🐤"
+    page_icon="🐤",
+    layout="wide"  # レスポンシブデザインのためのレイアウト設定
 )
 
 st.title("🐤 Chat with Gemini 1.5Pro")
@@ -21,7 +23,7 @@ st.title("🐤 Chat with Gemini 1.5Pro")
 if "chat_session" not in st.session_state:
     model = genai.GenerativeModel('gemini-1.5-pro-latest')
     st.session_state["chat_session"] = model.start_chat(history=[
-        glm.Content(role="user", parts=[glm.Part(text="あなたは優秀なAIアシスタントです。どのような話題も適切に詳細に答えます。時々偉人や哲学者の名言を引用します。")]),
+        glm.Content(role="user", parts=[glm.Part(text="あなたは優秀なAIアシスタントです。どのような話題も適切に詳細に答えます。時々偉人や哲学者の名言を日本語で引用してください。")]),
         glm.Content(role="model", parts=[glm.Part(text="わかりました。")])
     ])
     st.session_state["chat_history"] = []
@@ -67,7 +69,9 @@ if __name__ == "__main__":
         except Exception as e:
             # その他の例外が発生した場合のエラーハンドリング
             return str(e), 500
+        
         # 正常終了時のレスポンスを返す
         return 'OK', 200
 
-    app.run(port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)

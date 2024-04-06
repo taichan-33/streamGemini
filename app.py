@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import google.generativeai as genai
 import google.ai.generativelanguage as glm
+import traceback
 
 # API キーの読み込み
 api_key = os.environ.get("GENERATIVEAI_API_KEY")
@@ -18,10 +19,10 @@ st.title("🤖 Chat with Gemini 1.5Pro")
 
 # 安全設定
 safety_settings = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
 ]
 
 # セッション状態の初期化
@@ -38,7 +39,7 @@ if "chat_session" not in st.session_state:
                 ],
             ),
             glm.Content(role="model", parts=[glm.Part(text="わかりました。")]),
-        ]
+        ],
     )
     st.session_state["chat_history"] = []
 
@@ -59,7 +60,7 @@ if prompt := st.chat_input("ここに入力してください"):
     # Gemini Pro にメッセージ送信 (ストリーミング)
     try:
         response = st.session_state["chat_session"].send_message(
-            prompt, stream=True, timeout=600, safety_settings=safety_settings
+            prompt, stream=True, safety_settings=safety_settings
         )
 
         # Gemini Pro のレスポンスを表示 (ストリーミング)
@@ -89,7 +90,8 @@ if prompt := st.chat_input("ここに入力してください"):
             {"role": "assistant", "content": "現在アクセスが集中しております。しばらくしてから再度お試しください。"}
         )
         # エラーの詳細をログに記録する
-        st.error(f"エラーが発生しました: {str(e)}")
+        error_details = traceback.format_exc()
+        st.error(f"エラーが発生しました: {str(e)}\n\nエラー詳細:\n{error_details}")
 
 if __name__ == "__main__":
     from streamlit.web.cli import main
@@ -107,8 +109,8 @@ if __name__ == "__main__":
                 return "Error", 500
         except Exception as e:
             # その他の例外が発生した場合のエラーハンドリング
-            return str(e), 500
-
+            error_details = traceback.format_exc()
+            return f"Error: {str(e)}\n\nError Details:\n{error_details}", 500
         # 正常終了時のレスポンスを返す
         return "OK", 200
 

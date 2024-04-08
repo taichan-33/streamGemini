@@ -4,7 +4,9 @@ import streamlit as st
 import streamlit_authenticator as stauth
 import google.generativeai as genai
 import google.ai.generativelanguage as glm
+from google.generativeai.types import generation_types
 import traceback
+import time
 
 # ページ設定
 st.set_page_config(
@@ -69,6 +71,8 @@ if authentication_status:
                 glm.Content(role="model", parts=[glm.Part(text="わかりました。")]),
             ],
         )
+
+    if "chat_history" not in st.session_state:
         st.session_state["chat_history"] = []
 
     # チャット履歴の表示
@@ -90,6 +94,11 @@ if authentication_status:
             response = st.session_state["chat_session"].send_message(
                 prompt, stream=True, safety_settings=safety_settings
             )
+            
+            # タイムアウト設定 (60秒)
+            start_time = time.time()
+            timeout = 59
+        
             # Gemini Pro のレスポンスを表示 (ストリーミング) 
             with st.chat_message("assistant"):
                 response_text_placeholder = st.empty()
@@ -103,24 +112,39 @@ if authentication_status:
                         full_response_text += "現在アクセスが集中しております。しばらくしてから再度お試しください。"
                         break
 
+                    # タイムアウトチェック 
+                    if time.time() - start_time > timeout:
+                        response.resolve()
+                        break  # ループを中断
+                        
             # 最終的なレスポンスを表示
             response_text_placeholder.markdown(full_response_text)
-
-            # Gemini Pro のレスポンスをチャット履歴に追加
+            
+            # チャット履歴にレスポンスを追加
             st.session_state["chat_history"].append(
                 {"role": "assistant", "content": full_response_text}
             )
+            
+        except generation_types.BrokenResponseError as e:
+            # ストリーミングレスポンスが中断された場合、最後のレスポンスを履歴に追加
+            if 'full_response_text' in locals():  
+                st.session_state["chat_history"].append(
+                    {"role": "assistant", "content": full_response_text}
+                )
+                
+            last_send, last_received = st.session_state["chat_session"].rewind()
 
         except Exception as e:
-            # エラー発生時もユーザーフレンドリーなメッセージを返す 
+            # エラー発生時、ユーザーフレンドリーなメッセージを追加
             st.session_state["chat_history"].append(
-                {"role": "assistant", "content": "現在アクセスが集中しております。しばらくしてから再度お試しください。"}
+                {"role": "assistant", "content": "申し訳ありません。エラーが発生しました。しばらくしてから再度お試しください。"}
             )
             # エラーの詳細をログに記録する
             error_details = traceback.format_exc()
             st.error(f"エラーが発生しました: {str(e)}\n\nエラー詳細:\n{error_details}")
 
     authenticator.logout("Logout", "sidebar")
+    
 elif authentication_status is False:
     st.error('Username/password is incorrect')
 elif authentication_status is None:
